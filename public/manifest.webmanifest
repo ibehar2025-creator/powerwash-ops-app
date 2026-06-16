@@ -1,0 +1,19 @@
+{
+  "name": "PowerWash Ops App",
+  "short_name": "PowerWash Ops",
+  "description": "Installable operations dashboard for The Powerwashing Pros.",
+  "start_url": "/powerwash-ops-app/",
+  "scope": "/powerwash-ops-app/",
+  "display": "standalone",
+  "background_color": "#f8fbfc",
+  "theme_color": "#0f3d4a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/powerwash-ops-app/app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
