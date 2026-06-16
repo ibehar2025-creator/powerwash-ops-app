@@ -65,6 +65,10 @@ VITE_SHEETS_SYNC_URL=https://your-sync-endpoint.example.com/sheets
 
 Until that endpoint exists, the dashboard uses the latest bundled snapshot imported from Google Drive.
 
+## iPhone Install
+
+Open `https://ibehar2025-creator.github.io/powerwash-ops-app/` in Safari on the iPhone, tap Share, then tap Add to Home Screen. Apple only allows true iPhone app installs through the App Store/TestFlight with an Apple Developer account, so this free version installs as a Safari PWA home-screen app.
+
 ## Development
 
 ```bash

@@ -17,9 +17,11 @@ import {
   Menu,
   Moon,
   ReceiptText,
+  Share,
   Sparkles,
   Star,
   Sun,
+  Smartphone,
   Users,
   WalletCards,
   X,
@@ -115,6 +117,18 @@ const planTypes: ServicePlan["type"][] = ["monthly", "6-week", "3-month", "6-mon
 const PHOTO_STORAGE_KEY = "powerwash-job-photo-overrides";
 const SHEET_PHOTO_LIMIT = 45_000;
 
+function isIosDevice() {
+  if (typeof window === "undefined") return false;
+  const platform = window.navigator.platform.toLowerCase();
+  const userAgent = window.navigator.userAgent.toLowerCase();
+  return /iphone|ipad|ipod/.test(userAgent) || (platform === "macintel" && window.navigator.maxTouchPoints > 1);
+}
+
+function isStandaloneApp() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches || Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+}
+
 function addDays(date: string, days: number) {
   const next = new Date(`${date}T12:00:00`);
   next.setDate(next.getDate() + days);
@@ -187,6 +201,20 @@ function normalizeJobPhotos(job: Job): Job {
     beforePhoto: cleanPhotoValue(job.beforePhoto),
     afterPhoto: cleanPhotoValue(job.afterPhoto),
   };
+}
+
+function timeFromOriginalDateText(notes?: string) {
+  const match = notes?.match(/Original date:\s*.*?\b(\d{1,2}):(\d{2})(?::\d{2})?\s*(?:GMT|\)|\.|$)/i);
+  if (!match) return undefined;
+  return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
+
+function normalizeSyncedJobs(rows: Job[]) {
+  return mergePhotoOverrides(rows.map((job) => ({
+    ...job,
+    crewIds: [],
+    time: timeFromOriginalDateText(job.notes) ?? job.time,
+  })));
 }
 
 function sheetRowNumberFromJobId(jobId: string) {
@@ -332,6 +360,36 @@ function Stat({ label, value, detail, icon: Icon }: { label: string; value: stri
   );
 }
 
+function IosInstallTip() {
+  const [showTip, setShowTip] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    setShowTip(isIosDevice() && !isStandaloneApp());
+  }, []);
+
+  if (!showTip || dismissed) return null;
+
+  return (
+    <div className="ios-install-tip">
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-lagoon text-white">
+          <Smartphone size={20} />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold text-ink dark:text-white">Install on iPhone</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Open this in Safari, tap Share, then Add to Home Screen.</p>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs font-semibold text-lagoon dark:text-cyan-300">
+            <span className="inline-flex items-center gap-1"><Share size={14} /> Share</span>
+            <span>Add to Home Screen</span>
+          </div>
+        </div>
+      </div>
+      <button className="icon-button shrink-0" onClick={() => setDismissed(true)} title="Dismiss iPhone install tip" aria-label="Dismiss iPhone install tip"><X size={16} /></button>
+    </div>
+  );
+}
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="text-sm font-semibold text-slate-600 dark:text-slate-300">{label}{children}</label>;
 }
@@ -424,7 +482,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>(importedCustomers);
-  const [jobs, setJobs] = useState<Job[]>(() => mergePhotoOverrides(importedJobs.map((job) => ({ ...job, crewIds: [] }))));
+  const [jobs, setJobs] = useState<Job[]>(() => normalizeSyncedJobs(importedJobs));
   const [invoices, setInvoices] = useState<Invoice[]>(importedInvoices);
   const [expenses, setExpenses] = useState<Expense[]>(importedExpenses);
   const [plans, setPlans] = useState<ServicePlan[]>(importedServicePlans);
@@ -449,7 +507,7 @@ export default function App() {
       if (!response.ok) throw new Error(`Sync failed with ${response.status}`);
       const payload = (await response.json()) as SyncPayload;
       if (payload.customers) setCustomers(customersFromSyncPayload(payload));
-      if (payload.jobs) setJobs(mergePhotoOverrides(payload.jobs.map((job) => ({ ...job, crewIds: [] }))));
+      if (payload.jobs) setJobs(normalizeSyncedJobs(payload.jobs));
       if (payload.invoices) setInvoices(payload.invoices);
       if (payload.expenses) setExpenses(payload.expenses);
       if (payload.servicePlans) setPlans(cleanServicePlans(payload.servicePlans));
@@ -541,7 +599,7 @@ export default function App() {
     if (!response.ok) throw new Error(`Sheet save failed with ${response.status}`);
     const payload = (await response.json().catch(() => ({}))) as SyncPayload & { ok?: boolean };
     if (payload.customers) setCustomers(customersFromSyncPayload(payload));
-    if (payload.jobs) setJobs(mergePhotoOverrides(payload.jobs.map((job) => ({ ...job, crewIds: [] }))));
+    if (payload.jobs) setJobs(normalizeSyncedJobs(payload.jobs));
     if (payload.invoices) setInvoices(payload.invoices);
     if (payload.expenses) setExpenses(payload.expenses);
     if (payload.servicePlans) setPlans(cleanServicePlans(payload.servicePlans));
@@ -634,6 +692,7 @@ export default function App() {
               </aside>
             </div>
           )}
+          <IosInstallTip />
           <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-6">
             {activeTab === "dashboard" && <Dashboard customers={customers} jobs={jobs} invoices={invoices} expenses={expenses} reviews={reviews} onJobClick={setSelectedJob} onClientJobCreate={createClientJob} />}
             {activeTab === "customers" && <Customers customers={customers} jobs={jobs} invoices={invoices} />}
